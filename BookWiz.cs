@@ -1,6 +1,9 @@
 ﻿using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
+using System.Globalization;
+using System.Windows.Forms;
+
 namespace BookWiz
 {
     public partial class BookWiz : Form
@@ -13,7 +16,7 @@ namespace BookWiz
         private ToolStripButton saveToolStripButton;
         private ToolStripSeparator toolStripSeparator;
         private ToolStripButton helpToolStripButton;
-        private TabControl ExpensesTotalLabel;
+        private TabControl tabControl1;
         private TabPage tabPage1;
         private TabPage tabPage2;
         private TabPage tabPage3;
@@ -25,11 +28,7 @@ namespace BookWiz
         private Button CancelBTN;
         private DateTime MaxSelectedDate;
         private TextBox DescriptionBox;
-        private DataTable dt1;
-        private DataTable dt2;
-        private DataTable dt3;
-        private DataTable dt4;
-        private DataTable dt5;
+        private DataTable dt;
         private TableLayoutPanel tableLayoutPanel2;
         private Label GrandTotalLabel;
         private Label TotalLabel;
@@ -38,55 +37,100 @@ namespace BookWiz
         private Label label5;
         private DataGridView dataGridView2;
         private TableLayoutPanel tableLayoutPanel5;
-        private Label ExpenseTotal;
+        private Label ExpenseTotalLabel;
         private Label label7;
         private DataGridView dataGridView3;
         private TableLayoutPanel tableLayoutPanel3;
         private Label label2;
         private Label label3;
         private DataGridView dataGridView1;
-        private DataSet dataSet = new DataSet();
-        decimal incomeTotal = 0;
-        decimal expenseTotal = 0;
+        private DataSet dataSet = new();
+        object incomeTotal = 0;
+        object expenseTotal = 0;
         private ToolStripButton printToolStripButton;
-        decimal grandTotal;
-
-        private void refresh()
+        object grandTotal;
+        DataView Income;
+        DataView Expenses;
+        readonly CultureInfo culture = new("en-us");
+        private void RefreshTables()
         {
-            dt4 = dt1.Copy();
-            dt5 = dt1.Copy();
-            dt4.DefaultView.RowFilter = "Type = 'Income'";
-            dt2 = dt4.DefaultView.ToTable();
-            dt4.Clear();
-            dt5.DefaultView.RowFilter = "Type = 'Expenses'";
-            dt3 = dt5.DefaultView.ToTable();
-            dt5.Clear();
-            dataGridView1.DataSource = dt1;
+            dt.AcceptChanges();
+            incomeTotal = 0;
+            expenseTotal = 0;
+            incomeTotal = Income.ToTable().Compute("sum(Amount)", string.Empty);
+            expenseTotal = Expenses.ToTable().Compute("sum(Amount)", string.Empty);
+            grandTotal = dt.Compute("sum(Amount)", string.Empty);
+
+            if (expenseTotal == DBNull.Value)
+            {
+                ExpenseTotalLabel.Text = "$0.00";
+            }
+            else
+            {
+                ExpenseTotalLabel.Text = Convert.ToDecimal(expenseTotal).ToString("C", culture);
+            }
+            if (incomeTotal == DBNull.Value)
+            {
+                IncomeTotalLabel.Text = "$0.00";
+            }
+            else
+            {
+                IncomeTotalLabel.Text = Convert.ToDecimal(incomeTotal).ToString("C", culture);
+            }
+            if (grandTotal == DBNull.Value)
+            {
+                GrandTotalLabel.Text = "$0.00";
+            }
+            else if (grandTotal == null)
+            {
+                GrandTotalLabel.Text = "$0.00";
+            }
+
+            else
+            {
+                GrandTotalLabel.Text = Convert.ToDecimal(grandTotal).ToString("C", culture);
+            }
+            dataGridView1.DataSource = dt;
+            dataGridView2.DataSource = Income;
+            dataGridView3.DataSource = Expenses;
+            dt.DefaultView.Sort = "Date";
+            Income.Sort = "Date";
+            Expenses.Sort = "Date";
+            dataGridView1.Columns["Amount"].DefaultCellStyle.Format = "C";
+            dataGridView2.Columns["Amount"].DefaultCellStyle.Format = "C";
+            dataGridView3.Columns["Amount"].DefaultCellStyle.Format = "C";
+            int wide = 100;
+            dataGridView1.Columns["Date"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridView2.Columns["Date"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridView3.Columns["Date"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridView1.Columns["Date"].Width = wide;
+            dataGridView2.Columns["Date"].Width = wide;
+            dataGridView3.Columns["Date"].Width = wide;
+            dataGridView1.Columns["Amount"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridView2.Columns["Amount"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridView3.Columns["Amount"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridView1.Columns["Amount"].Width = wide;
+            dataGridView2.Columns["Amount"].Width = wide;
+            dataGridView3.Columns["Amount"].Width = wide;
+            dataGridView1.Columns["Type"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridView2.Columns["Type"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridView3.Columns["Type"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridView1.Columns["Type"].Width = wide;
+            dataGridView2.Columns["Type"].Width = wide;
+            dataGridView3.Columns["Type"].Width = wide;
+
             dataGridView1.AutoResizeColumns();
-            dataGridView2.DataSource = dt2;
             dataGridView2.AutoResizeColumns();
-            dataGridView3.DataSource = dt3;
             dataGridView3.AutoResizeColumns();
-            foreach (DataRow dr2 in dt2.Rows)
-            {
-                incomeTotal += (decimal)dr2["Amount"];
-            }
-            foreach (DataRow dr3 in dt3.Rows)
-            {
-                expenseTotal += (decimal)dr3["Amount"];
-            }
-            grandTotal = incomeTotal - expenseTotal;
-            GrandTotalLabel.Text = "$" + grandTotal.ToString();
-            IncomeTotalLabel.Text = "$" + incomeTotal.ToString();
-            ExpenseTotal.Text = "$" + expenseTotal.ToString();
+
         }
 
-        private void reset()
+        private void Reset()
         {
             MaxSelectedDate = dateTimePicker1.MaxDate;
-            if (DateTime.Now > MaxSelectedDate)
+            if (DateTime.Today > MaxSelectedDate)
             {
-                dateTimePicker1.MaxDate = DateTime.Now;
+                dateTimePicker1.MaxDate = DateTime.Today;
             }
             dateTimePicker1.ResetText();
             numericUpDown1.Value = 0;
@@ -97,39 +141,34 @@ namespace BookWiz
             DescriptionBox.ResetText();
             DescriptionBox.Text = null;
         }
+        private void NewDoc()
+        {
+            dt.Rows.Clear();
+            RefreshTables();
+            Reset();
+        }
         public BookWiz()
         {
-            grandTotal = incomeTotal - expenseTotal;
-            dt1 = new DataTable();
-            dt1.Clear();
-            dataSet.Tables.Add(dt1);
-            dt1.Columns.Add("Date", typeof(string));
-            dt1.Columns.Add("Amount", typeof(decimal));
-            dt1.Columns.Add("Type", typeof(string));
-            dt1.Columns.Add("Description", typeof(string));
-            dt4 = dt1.Copy();
-            dt5 = dt1.Copy();
-            dt4.DefaultView.RowFilter = "Type = 'Income'";
-            dt2 = dt4.DefaultView.ToTable();
-            dt4.Clear();
-            dt5.DefaultView.RowFilter = "Type = 'Expenses'";
-            dt3 = dt5.DefaultView.ToTable();
-            dt5.Clear();
-            InitializeComponent();
-            dateTimePicker1.Value = DateTime.Now;
-            MaxSelectedDate = dateTimePicker1.MaxDate;
-            if (DateTime.Now > MaxSelectedDate)
-            {
-                MaxSelectedDate = DateTime.Now;
-            }
-            dataGridView1.DataSource = dt1;
-            dataGridView1.AutoResizeColumns();
-            dataGridView2.DataSource = dt2;
-            dataGridView2.AutoResizeColumns();
-            dataGridView3.DataSource = dt3;
-            dataGridView3.AutoResizeColumns();
+            dt = new DataTable();
+            Income = new DataView(dt);
+            Expenses = new DataView(dt);
+            dt.Clear();
+            dataSet.Tables.Add(dt);
+            dt.Columns.Add("Date", typeof(DateOnly));
+            dt.Columns.Add("Amount", typeof(decimal));
+            dt.Columns.Add("Type", typeof(string));
+            dt.Columns.Add("Description", typeof(string));
+            Income.RowFilter = "Type = 'Income'";
+            Expenses.RowFilter = "Type = 'Expenses'";
 
-            refresh();
+            InitializeComponent();
+            dateTimePicker1.Value = DateTime.Today;
+            MaxSelectedDate = dateTimePicker1.MaxDate;
+            if (DateTime.Today > MaxSelectedDate)
+            {
+                MaxSelectedDate = DateTime.Today;
+            }
+            NewDoc();
         }
         private void InitializeComponent()
         {
@@ -143,7 +182,7 @@ namespace BookWiz
             printToolStripButton = new ToolStripButton();
             toolStripSeparator = new ToolStripSeparator();
             helpToolStripButton = new ToolStripButton();
-            ExpensesTotalLabel = new TabControl();
+            tabControl1 = new TabControl();
             tabPage1 = new TabPage();
             tableLayoutPanel2 = new TableLayoutPanel();
             GrandTotalLabel = new Label();
@@ -156,7 +195,7 @@ namespace BookWiz
             dataGridView2 = new DataGridView();
             tabPage3 = new TabPage();
             tableLayoutPanel5 = new TableLayoutPanel();
-            ExpenseTotal = new Label();
+            ExpenseTotalLabel = new Label();
             label7 = new Label();
             dataGridView3 = new DataGridView();
             dateTimePicker1 = new DateTimePicker();
@@ -171,7 +210,7 @@ namespace BookWiz
             label3 = new Label();
             tableLayoutPanel1.SuspendLayout();
             toolStrip1.SuspendLayout();
-            ExpensesTotalLabel.SuspendLayout();
+            tabControl1.SuspendLayout();
             tabPage1.SuspendLayout();
             tableLayoutPanel2.SuspendLayout();
             ((ISupportInitialize)dataGridView1).BeginInit();
@@ -198,7 +237,7 @@ namespace BookWiz
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle());
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle());
             tableLayoutPanel1.Controls.Add(toolStrip1, 0, 0);
-            tableLayoutPanel1.Controls.Add(ExpensesTotalLabel, 0, 3);
+            tableLayoutPanel1.Controls.Add(tabControl1, 0, 3);
             tableLayoutPanel1.Controls.Add(dateTimePicker1, 0, 1);
             tableLayoutPanel1.Controls.Add(numericUpDown1, 2, 1);
             tableLayoutPanel1.Controls.Add(label1, 1, 1);
@@ -236,7 +275,7 @@ namespace BookWiz
             newToolStripButton.Name = "newToolStripButton";
             newToolStripButton.Size = new Size(23, 22);
             newToolStripButton.Text = "&New";
-            newToolStripButton.Click += newToolStripButton_Click;
+            newToolStripButton.Click += NewToolStripButton_Click;
             // 
             // openToolStripButton
             // 
@@ -246,7 +285,7 @@ namespace BookWiz
             openToolStripButton.Name = "openToolStripButton";
             openToolStripButton.Size = new Size(23, 22);
             openToolStripButton.Text = "&Open";
-            openToolStripButton.Click += openToolStripButton_Click;
+            openToolStripButton.Click += OpenToolStripButton_Click;
             // 
             // saveToolStripButton
             // 
@@ -256,7 +295,7 @@ namespace BookWiz
             saveToolStripButton.Name = "saveToolStripButton";
             saveToolStripButton.Size = new Size(23, 22);
             saveToolStripButton.Text = "&Save";
-            saveToolStripButton.Click += saveToolStripButton_Click;
+            saveToolStripButton.Click += SaveToolStripButton_Click;
             // 
             // printToolStripButton
             // 
@@ -266,7 +305,7 @@ namespace BookWiz
             printToolStripButton.Name = "printToolStripButton";
             printToolStripButton.Size = new Size(23, 22);
             printToolStripButton.Text = "&Print";
-            printToolStripButton.Click += exportToolStripButton1_Click;
+            printToolStripButton.Click += ExportToolStripButton1_Click;
             // 
             // toolStripSeparator
             // 
@@ -281,22 +320,22 @@ namespace BookWiz
             helpToolStripButton.Name = "helpToolStripButton";
             helpToolStripButton.Size = new Size(23, 22);
             helpToolStripButton.Text = "He&lp";
-            helpToolStripButton.Click += helpToolStripButton_Click;
+            helpToolStripButton.Click += HelpToolStripButton_Click;
             // 
-            // ExpensesTotalLabel
+            // tabControl1
             // 
-            tableLayoutPanel1.SetColumnSpan(ExpensesTotalLabel, 7);
-            ExpensesTotalLabel.Controls.Add(tabPage1);
-            ExpensesTotalLabel.Controls.Add(tabPage2);
-            ExpensesTotalLabel.Controls.Add(tabPage3);
-            ExpensesTotalLabel.Dock = DockStyle.Fill;
-            ExpensesTotalLabel.HotTrack = true;
-            ExpensesTotalLabel.Location = new Point(3, 59);
-            ExpensesTotalLabel.Name = "ExpensesTotalLabel";
-            ExpensesTotalLabel.SelectedIndex = 0;
-            ExpensesTotalLabel.Size = new Size(834, 661);
-            ExpensesTotalLabel.SizeMode = TabSizeMode.FillToRight;
-            ExpensesTotalLabel.TabIndex = 1;
+            tableLayoutPanel1.SetColumnSpan(tabControl1, 7);
+            tabControl1.Controls.Add(tabPage1);
+            tabControl1.Controls.Add(tabPage2);
+            tabControl1.Controls.Add(tabPage3);
+            tabControl1.Dock = DockStyle.Fill;
+            tabControl1.HotTrack = true;
+            tabControl1.Location = new Point(3, 59);
+            tabControl1.Name = "tabControl1";
+            tabControl1.SelectedIndex = 0;
+            tabControl1.Size = new Size(834, 661);
+            tabControl1.SizeMode = TabSizeMode.FillToRight;
+            tabControl1.TabIndex = 1;
             // 
             // tabPage1
             // 
@@ -334,6 +373,7 @@ namespace BookWiz
             GrandTotalLabel.Name = "GrandTotalLabel";
             GrandTotalLabel.Size = new Size(782, 15);
             GrandTotalLabel.TabIndex = 11;
+            GrandTotalLabel.Text = "$0.00";
             GrandTotalLabel.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // TotalLabel
@@ -359,9 +399,11 @@ namespace BookWiz
             dataGridView1.Location = new Point(3, 18);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.ReadOnly = true;
+            dataGridView1.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.AutoSizeToAllHeaders;
             dataGridView1.RowTemplate.Height = 25;
             dataGridView1.Size = new Size(820, 612);
             dataGridView1.TabIndex = 1;
+            dataGridView1.UserDeletedRow += DataGridView1_UserDeletedRow;
             // 
             // tabPage2
             // 
@@ -399,6 +441,7 @@ namespace BookWiz
             IncomeTotalLabel.Name = "IncomeTotalLabel";
             IncomeTotalLabel.Size = new Size(782, 15);
             IncomeTotalLabel.TabIndex = 11;
+            IncomeTotalLabel.Text = "$0.00";
             IncomeTotalLabel.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // label5
@@ -424,6 +467,7 @@ namespace BookWiz
             dataGridView2.Location = new Point(3, 18);
             dataGridView2.Name = "dataGridView2";
             dataGridView2.ReadOnly = true;
+            dataGridView2.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.AutoSizeToAllHeaders;
             dataGridView2.RowTemplate.Height = 25;
             dataGridView2.Size = new Size(820, 612);
             dataGridView2.TabIndex = 1;
@@ -444,7 +488,7 @@ namespace BookWiz
             tableLayoutPanel5.ColumnCount = 2;
             tableLayoutPanel5.ColumnStyles.Add(new ColumnStyle());
             tableLayoutPanel5.ColumnStyles.Add(new ColumnStyle());
-            tableLayoutPanel5.Controls.Add(ExpenseTotal, 1, 0);
+            tableLayoutPanel5.Controls.Add(ExpenseTotalLabel, 1, 0);
             tableLayoutPanel5.Controls.Add(label7, 0, 0);
             tableLayoutPanel5.Controls.Add(dataGridView3, 0, 1);
             tableLayoutPanel5.Dock = DockStyle.Fill;
@@ -456,16 +500,16 @@ namespace BookWiz
             tableLayoutPanel5.Size = new Size(820, 627);
             tableLayoutPanel5.TabIndex = 2;
             // 
-            // ExpenseTotal
+            // ExpenseTotalLabel
             // 
-            ExpenseTotal.AutoSize = true;
-            ExpenseTotal.Dock = DockStyle.Fill;
-            ExpenseTotal.Location = new Point(41, 0);
-            ExpenseTotal.Name = "ExpenseTotal";
-            ExpenseTotal.Size = new Size(782, 15);
-            ExpenseTotal.TabIndex = 11;
-            ExpenseTotal.Text = "$ExpenseTotal [System.Windows.Forms.Label], Text: ";
-            ExpenseTotal.TextAlign = ContentAlignment.MiddleCenter;
+            ExpenseTotalLabel.AutoSize = true;
+            ExpenseTotalLabel.Dock = DockStyle.Fill;
+            ExpenseTotalLabel.Location = new Point(41, 0);
+            ExpenseTotalLabel.Name = "ExpenseTotalLabel";
+            ExpenseTotalLabel.Size = new Size(782, 15);
+            ExpenseTotalLabel.TabIndex = 11;
+            ExpenseTotalLabel.Text = "$0.00";
+            ExpenseTotalLabel.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // label7
             // 
@@ -498,7 +542,7 @@ namespace BookWiz
             dataGridViewCellStyle1.SelectionForeColor = SystemColors.HighlightText;
             dataGridViewCellStyle1.WrapMode = DataGridViewTriState.True;
             dataGridView3.RowHeadersDefaultCellStyle = dataGridViewCellStyle1;
-            dataGridView3.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.DisableResizing;
+            dataGridView3.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.AutoSizeToAllHeaders;
             dataGridView3.RowTemplate.Height = 25;
             dataGridView3.Size = new Size(820, 612);
             dataGridView3.TabIndex = 1;
@@ -506,9 +550,9 @@ namespace BookWiz
             // dateTimePicker1
             // 
             dateTimePicker1.AllowDrop = true;
-            dateTimePicker1.CustomFormat = "yyyy/MM/dd";
+            dateTimePicker1.CustomFormat = "";
             dateTimePicker1.Dock = DockStyle.Fill;
-            dateTimePicker1.Format = DateTimePickerFormat.Custom;
+            dateTimePicker1.Format = DateTimePickerFormat.Short;
             dateTimePicker1.Location = new Point(3, 28);
             dateTimePicker1.Name = "dateTimePicker1";
             dateTimePicker1.Size = new Size(114, 23);
@@ -633,11 +677,12 @@ namespace BookWiz
             HelpButton = true;
             Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "BookWiz";
+            Text = "BookWiz";
             tableLayoutPanel1.ResumeLayout(false);
             tableLayoutPanel1.PerformLayout();
             toolStrip1.ResumeLayout(false);
             toolStrip1.PerformLayout();
-            ExpensesTotalLabel.ResumeLayout(false);
+            tabControl1.ResumeLayout(false);
             tabPage1.ResumeLayout(false);
             tableLayoutPanel2.ResumeLayout(false);
             tableLayoutPanel2.PerformLayout();
@@ -660,69 +705,72 @@ namespace BookWiz
         private void ConfirmBTN_Click_1(object sender, EventArgs e)
         {
 
-            if ((string)comboBox1.SelectedItem == "Expenses")
+            if (DescriptionBox.Text == "")
             {
-                if (DescriptionBox.Text == "") { }
-
-                else
-                {
-                    DataRow dr1 = dt1.NewRow();
-                    dr1[0] = dateTimePicker1.Value.Date.ToString("yyyy/MM/dd");
-                    dr1[1] = numericUpDown1.Value;
-                    dr1[2] = comboBox1.SelectedItem;
-                    dr1[3] = DescriptionBox.Text;
-                    dt1.Rows.Add(dr1);
-                    refresh();
-                    reset();
-                }
-            }
-            else if ((string)comboBox1.SelectedItem == "Income")
-            {
-                if (DescriptionBox.Text == "") { }
-
-                else
-                {
-                    DataRow dr1 = dt1.NewRow();
-                    dr1[0] = dateTimePicker1.Value.Date.ToString("yyyy/MM/dd");
-                    dr1[1] = numericUpDown1.Value;
-                    dr1[2] = comboBox1.SelectedItem;
-                    dr1[3] = DescriptionBox.Text;
-                    dt1.Rows.Add(dr1);
-                    refresh();
-                    reset();
-                }
+                RefreshTables();
             }
             else
             {
+                if (comboBox1.SelectedItem == null)
+                {
+                    RefreshTables();
+                }
+                else if (comboBox1.SelectedItem.ToString() == "Income")
+                {
+                    DataRow dr = dt.NewRow();
+                    dr[0] = DateOnly.FromDateTime(dateTimePicker1.Value.Date);
+                    dr[1] = numericUpDown1.Value;
+                    dr[2] = comboBox1.SelectedItem;
+                    dr[3] = DescriptionBox.Text;
+
+                    dt.Rows.Add(dr);
+                    RefreshTables();
+                    Reset();
+                }
+                else if (comboBox1.SelectedItem.ToString() == "Expenses")
+                {
+                    DataRow dr = dt.NewRow();
+                    dr[0] = DateOnly.FromDateTime(dateTimePicker1.Value.Date);
+                    dr[1] = -numericUpDown1.Value;
+                    dr[2] = comboBox1.SelectedItem;
+                    dr[3] = DescriptionBox.Text;
+
+
+                    dt.Rows.Add(dr);
+                    RefreshTables();
+                    Reset();
+                }
 
             }
 
         }
         private void CancelBTN_Click_1(object sender, EventArgs e)
         {
-            reset();
+            Reset();
         }
 
-        private void saveToolStripButton_Click(object sender, EventArgs e)
+        private void SaveToolStripButton_Click(object sender, EventArgs e)
         {
-            SaveFileDialog saveFileDialog = new SaveFileDialog();
-            saveFileDialog.Filter = "XML-File | *.xml";
+            SaveFileDialog saveFileDialog = new()
+            {
+                Filter = "XML-File | *.xml"
+            };
             if (saveFileDialog.ShowDialog() == DialogResult.OK)
             {
                 dataSet.WriteXml(saveFileDialog.FileName);
             }
         }
 
-        private void openToolStripButton_Click(object sender, EventArgs e)
+        private void OpenToolStripButton_Click(object sender, EventArgs e)
         {
 
-            OpenFileDialog openFileDialog = new OpenFileDialog();
-            openFileDialog.Filter = "XML-File | *.xml";
+            OpenFileDialog openFileDialog = new()
+            {
+                Filter = "XML-File | *.xml"
+            };
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
-                dt1.Rows.Clear();
-                dt2.Rows.Clear();
-                dt3.Rows.Clear();
+                dt.Rows.Clear();
                 try
                 {
                     dataSet.ReadXml(openFileDialog.FileName);
@@ -732,37 +780,22 @@ namespace BookWiz
                     MessageBox.Show("Oops! Your data may not have been entered correctly.");
 
                 }
-                dt4 = dt1.Copy();
-                dt5 = dt1.Copy();
-                dt4.DefaultView.RowFilter = "Type = 'Income'";
-                dt2 = dt4.DefaultView.ToTable();
-                dt4.Clear();
-                dt5.DefaultView.RowFilter = "Type = 'Expenses'";
-                dt3 = dt5.DefaultView.ToTable();
-                dt5.Clear();
-                dataGridView1.DataSource = dt1;
-                dataGridView1.AutoResizeColumns();
-                dataGridView2.DataSource = dt2;
-                dataGridView2.AutoResizeColumns();
-                dataGridView3.DataSource = dt3;
-                dataGridView3.AutoResizeColumns();
+                base.Refresh();
 
             }
         }
 
-        private void newToolStripButton_Click(object sender, EventArgs e)
+        private void NewToolStripButton_Click(object sender, EventArgs e)
         {
-            dt1.Rows.Clear();
-            refresh();
-            reset();
+            NewDoc();
         }
 
-        private void printToolStripButton_Click(object sender, EventArgs e)
+        private void PrintToolStripButton_Click(object sender, EventArgs e)
         {
 
         }
 
-        private void printDocument1_PrintPage(object sender, System.Drawing.Printing.PrintPageEventArgs e)
+        private void PrintDocument1_PrintPage(object sender, System.Drawing.Printing.PrintPageEventArgs e)
         {
 
         }
@@ -782,9 +815,9 @@ namespace BookWiz
             page++;
             y = PageHeight - TopMargin;
 
-            Text(LeftMargin, PageHeight - 36, "BookWiz Report", 18);
-            Text(LeftMargin, 36, $"Page {page}", 12);
-            Text(LeftMargin + 144, 36, DateTime.Now.ToString(), 12);
+            OutputText(LeftMargin, PageHeight - 36, "BookWiz Report", 18);
+            OutputText(LeftMargin, 36, $"Page {page}", 12);
+            OutputText(LeftMargin + 144, 36, DateTime.Today.ToString(), 12);
 
         }
 
@@ -814,7 +847,7 @@ namespace BookWiz
             s.Close();
         }
 
-        void Text(int x, int y, string text, int size)
+        void OutputText(int x, int y, string text, int size)
         {
             if (FontSize != size)
             {
@@ -826,82 +859,91 @@ namespace BookWiz
             s.WriteLine($"({text}) show");
         }
 
-        void Text(int size, params (int x, string text)[] texts)
+        void OutputText(int size, params (int x, string text)[] texts)
         {
             if ((y - size) < BottomMargin)
                 NewPage();
             int x = LeftMargin;
             foreach (var t in texts)
             {
-                Text(x, y, t.text, size);
+                OutputText(x, y, t.text, size);
                 x += t.x;
             }
             y -= size;
         }
 
-        void Text(string text, int size = 12)
+        void OutputText(string text, int size = 12)
         {
-            Text(size, (0, text));
+            OutputText(size, (0, text));
         }
 
-        private void exportToolStripButton1_Click(object sender, EventArgs e)
+        private void ExportToolStripButton1_Click(object sender, EventArgs e)
         {
-            SaveFileDialog saveFileDialog2 = new SaveFileDialog();
-            saveFileDialog2.Title = "Export as";
-            saveFileDialog2.Filter = "PDF-File | *.PDF";
+            SaveFileDialog saveFileDialog2 = new()
+            {
+                Title = "Export as",
+                Filter = "PDF-File | *.PDF"
+            };
             if (saveFileDialog2.ShowDialog() == DialogResult.OK)
             {
                 String saveFile = "-sDEVICE=pdfwrite -r600 -o \"" + saveFileDialog2.FileName + "\" -";
-                ProcessStartInfo psi = new ProcessStartInfo("gswin64c.exe");
-                psi.Arguments = saveFile;
-                psi.UseShellExecute = false;
-                psi.CreateNoWindow = true;
-                psi.RedirectStandardInput = true;
-
-                using (Process p = Process.Start(psi))
+                ProcessStartInfo psi = new("gswin64c.exe")
                 {
-                    StartDoc(p.StandardInput);
-                    Text(12, (144, "Date"), (76, "Amount"), (100, "Type"), (0, "Description"));
+                    Arguments = saveFile,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardInput = true
+                };
 
-                    foreach (DataRow r in dt1.Rows)
+                using Process p = Process.Start(psi);
+                StartDoc(p.StandardInput);
+                OutputText(12, (144, "Date"), (76, "Amount"), (100, "Type"), (0, "Description"));
+
+                foreach (DataRow r in dt.Rows)
+                {
+                    OutputText(12, (144, r["Date"].ToString()), (76, r["Amount"].ToString()), (100, (string)r["Type"]), (0, (string)r["Description"]));
+                }
+
+                OutputText($"Total Income: {IncomeTotalLabel.Text}", 36);
+                OutputText($"Total Expenses: {ExpenseTotalLabel.Text}", 36);
+                OutputText($"Grand Total: {GrandTotalLabel.Text}", 36);
+
+                EndDoc();
+                p.WaitForExit(5000);
+                if (!p.HasExited)
+                {
+                    MessageBox.Show("Oops!  Didn't work.");
+                    p.Kill();
+                }
+                else if (p.ExitCode != 0)
+                {
+
+                    MessageBox.Show("Oops! Something went wrong! Make sure destination isn't open.");
+
+                }
+                else
+                {
+                    ProcessStartInfo psi2 = new(saveFileDialog2.FileName)
                     {
-                        Text(12, (144, (string)r["Date"]), (76, r["Amount"].ToString()), (100, (string)r["Type"]), (0, (string)r["Description"]));
-                    }
+                        UseShellExecute = true
+                    };
 
-                    Text($"Total Income: {IncomeTotalLabel.Text}", 36);
-                    Text($"Total Expenses: {ExpenseTotal.Text}", 36);
-                    Text($"Grand Total: {GrandTotalLabel.Text}", 36);
-
-                    EndDoc();
-                    p.WaitForExit(5000);
-                    if (!p.HasExited)
-                    {
-                        MessageBox.Show("Oops!  Didn't work.");
-                        p.Kill();
-                    }
-                    else if (p.ExitCode != 0)
-                    {
-
-                        MessageBox.Show("Oops! Something went wrong! Make sure destination isn't open.");
-
-                    }
-                    else
-                    {
-                        ProcessStartInfo psi2 = new ProcessStartInfo(saveFileDialog2.FileName);
-                        psi2.UseShellExecute = true;
-
-                        using (Process p2 = Process.Start(psi2))
-                            ;
-                    }
+                    using Process p2 = Process.Start(psi2);
                 }
             }
         }
-
-        private void helpToolStripButton_Click(object sender, EventArgs e)
+        private void HelpToolStripButton_Click(object sender, EventArgs e)
         {
-            AboutBox1 aboutBox1 = new AboutBox1();
+            AboutBox1 aboutBox1 = new();
             aboutBox1.ShowDialog();
 
         }
+
+
+        private void DataGridView1_UserDeletedRow(object sender, DataGridViewRowEventArgs e)
+        {
+            RefreshTables();
+        }
+
     }
 }
