@@ -105,7 +105,7 @@
             // 
             ReconciledLabel.AutoSize = true;
             ReconciledLabel.Dock = DockStyle.Fill;
-            ReconciledLabel.Location = new Point(180, 0);
+            ReconciledLabel.Location = new Point(177, 0);
             ReconciledLabel.Name = "ReconciledLabel";
             ReconciledLabel.Size = new Size(68, 31);
             ReconciledLabel.TabIndex = 2;
@@ -116,7 +116,7 @@
             // 
             NonReconciledLabel.AutoSize = true;
             NonReconciledLabel.Dock = DockStyle.Fill;
-            NonReconciledLabel.Location = new Point(390, 0);
+            NonReconciledLabel.Location = new Point(384, 0);
             NonReconciledLabel.Name = "NonReconciledLabel";
             NonReconciledLabel.Size = new Size(88, 31);
             NonReconciledLabel.TabIndex = 3;
@@ -128,11 +128,11 @@
             ReconciliationBTN.AutoSize = true;
             ReconciliationBTN.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             ReconciliationBTN.Dock = DockStyle.Fill;
-            ReconciliationBTN.Location = new Point(620, 3);
+            ReconciliationBTN.Location = new Point(611, 3);
             ReconciliationBTN.Name = "ReconciliationBTN";
-            ReconciliationBTN.Size = new Size(177, 25);
+            ReconciliationBTN.Size = new Size(186, 25);
             ReconciliationBTN.TabIndex = 4;
-            ReconciliationBTN.Text = "Reconcile/Apend/Unreconcile";
+            ReconciliationBTN.Text = "Reconcile/Pending/Unreconcile";
             ReconciliationBTN.UseVisualStyleBackColor = true;
             ReconciliationBTN.Click += ReconciliationBTN_Click;
             // 
@@ -142,7 +142,7 @@
             TotalAmountLabel.Dock = DockStyle.Fill;
             TotalAmountLabel.Location = new Point(44, 0);
             TotalAmountLabel.Name = "TotalAmountLabel";
-            TotalAmountLabel.Size = new Size(130, 31);
+            TotalAmountLabel.Size = new Size(127, 31);
             TotalAmountLabel.TabIndex = 5;
             TotalAmountLabel.Text = "$0.00";
             TotalAmountLabel.TextAlign = ContentAlignment.MiddleLeft;
@@ -151,9 +151,9 @@
             // 
             ReconciledAmountLabel.AutoSize = true;
             ReconciledAmountLabel.Dock = DockStyle.Fill;
-            ReconciledAmountLabel.Location = new Point(254, 0);
+            ReconciledAmountLabel.Location = new Point(251, 0);
             ReconciledAmountLabel.Name = "ReconciledAmountLabel";
-            ReconciledAmountLabel.Size = new Size(130, 31);
+            ReconciledAmountLabel.Size = new Size(127, 31);
             ReconciledAmountLabel.TabIndex = 6;
             ReconciledAmountLabel.Text = "$0.00";
             ReconciledAmountLabel.TextAlign = ContentAlignment.MiddleLeft;
@@ -162,9 +162,9 @@
             // 
             NonreconciledAmountLabel.AutoSize = true;
             NonreconciledAmountLabel.Dock = DockStyle.Fill;
-            NonreconciledAmountLabel.Location = new Point(484, 0);
+            NonreconciledAmountLabel.Location = new Point(478, 0);
             NonreconciledAmountLabel.Name = "NonreconciledAmountLabel";
-            NonreconciledAmountLabel.Size = new Size(130, 31);
+            NonreconciledAmountLabel.Size = new Size(127, 31);
             NonreconciledAmountLabel.TabIndex = 7;
             NonreconciledAmountLabel.Text = "$0.00";
             NonreconciledAmountLabel.TextAlign = ContentAlignment.MiddleLeft;
