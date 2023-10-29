@@ -1,11 +1,7 @@
 ﻿using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;
-using System.Windows.Forms;
-using System.Xml.Schema;
-using System.Xml.XPath;
 using static BookWiz.Balance;
 namespace BookWiz
 {
