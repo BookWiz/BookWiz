@@ -98,7 +98,6 @@
             // 
             // textBoxDescription
             // 
-            textBoxDescription.Dock = DockStyle.Fill;
             textBoxDescription.Font = new Font("Segoe UI", 12F, FontStyle.Regular, GraphicsUnit.Point);
             textBoxDescription.Location = new Point(181, 43);
             textBoxDescription.Margin = new Padding(7, 3, 4, 3);
@@ -119,6 +118,7 @@
             ClientSize = new Size(549, 343);
             Controls.Add(tableLayoutPanel);
             FormBorderStyle = FormBorderStyle.FixedDialog;
+            Icon = (Icon)resources.GetObject("$this.Icon");
             Margin = new Padding(4, 3, 4, 3);
             MaximizeBox = false;
             MinimizeBox = false;

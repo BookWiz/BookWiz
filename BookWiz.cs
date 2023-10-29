@@ -1,14 +1,16 @@
 ﻿using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;
 using System.Windows.Forms;
-
+using System.Xml.Schema;
+using System.Xml.XPath;
+using static BookWiz.Balance;
 namespace BookWiz
 {
     public partial class BookWiz : Form
     {
-        internal static string UserName = "";
         private TableLayoutPanel tableLayoutPanel1;
         private ToolStrip toolStrip1;
         private ToolStripButton newToolStripButton;
@@ -28,7 +30,7 @@ namespace BookWiz
         private Button CancelBTN;
         private DateTime MaxSelectedDate;
         private TextBox DescriptionBox;
-        private DataTable dt;
+        internal static DataTable dt;
         private TableLayoutPanel tableLayoutPanel2;
         private Label GrandTotalLabel;
         private Label TotalLabel;
@@ -51,15 +53,21 @@ namespace BookWiz
         object grandTotal;
         DataView Income;
         DataView Expenses;
+        private ToolStripButton BalanceBTN;
+        private ToolStripSeparator toolStripSeparator1;
         readonly CultureInfo culture = new("en-us");
         private void RefreshTables()
         {
             dt.AcceptChanges();
             incomeTotal = 0;
             expenseTotal = 0;
+            ReconciledTotal = 0;
+            NonreconciledTotal = 0;
             incomeTotal = Income.ToTable().Compute("sum(Amount)", string.Empty);
             expenseTotal = Expenses.ToTable().Compute("sum(Amount)", string.Empty);
             grandTotal = dt.Compute("sum(Amount)", string.Empty);
+            ReconciledView.RowFilter = "Reconciled = true";
+            NonreconciledView.RowFilter = "Reconciled = false";
 
             if (expenseTotal == DBNull.Value)
             {
@@ -118,11 +126,21 @@ namespace BookWiz
             dataGridView1.Columns["Type"].Width = wide;
             dataGridView2.Columns["Type"].Width = wide;
             dataGridView3.Columns["Type"].Width = wide;
-
-            dataGridView1.AutoResizeColumns();
-            dataGridView2.AutoResizeColumns();
-            dataGridView3.AutoResizeColumns();
-
+            dataGridView1.Columns["Reconciled"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridView2.Columns["Reconciled"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridView3.Columns["Reconciled"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridView1.Columns["Reconciled"].Width = wide;
+            dataGridView2.Columns["Reconciled"].Width = wide;
+            dataGridView3.Columns["Reconciled"].Width = wide;
+            dataGridView1.Columns["Pending"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridView2.Columns["Pending"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridView3.Columns["Pending"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridView1.Columns["Pending"].Width = wide;
+            dataGridView2.Columns["Pending"].Width = wide;
+            dataGridView3.Columns["Pending"].Width = wide;
+            ReconciledTotal = Balance.ReconciledView.ToTable().Compute("sum(Amount)", string.Empty);
+            NonreconciledTotal = NonreconciledView.ToTable().Compute("sum(Amount)", string.Empty);
+            dataSet.AcceptChanges();
         }
 
         private void Reset()
@@ -144,8 +162,8 @@ namespace BookWiz
         private void NewDoc()
         {
             dt.Rows.Clear();
-            RefreshTables();
             Reset();
+            RefreshTables();
         }
         public BookWiz()
         {
@@ -153,14 +171,15 @@ namespace BookWiz
             Income = new DataView(dt);
             Expenses = new DataView(dt);
             dt.Clear();
-            dataSet.Tables.Add(dt);
-            dt.Columns.Add("Date", typeof(DateOnly));
+            dt.Columns.Add("Date", typeof(DateTime));
             dt.Columns.Add("Amount", typeof(decimal));
             dt.Columns.Add("Type", typeof(string));
             dt.Columns.Add("Description", typeof(string));
+            dt.Columns.Add("Reconciled", typeof(bool));
+            dt.Columns.Add("Pending", typeof(bool));
             Income.RowFilter = "Type = 'Income'";
             Expenses.RowFilter = "Type = 'Expenses'";
-
+            dataSet.Tables.Add(dt);
             InitializeComponent();
             dateTimePicker1.Value = DateTime.Today;
             MaxSelectedDate = dateTimePicker1.MaxDate;
@@ -169,6 +188,7 @@ namespace BookWiz
                 MaxSelectedDate = DateTime.Today;
             }
             NewDoc();
+            RefreshTables();
         }
         private void InitializeComponent()
         {
@@ -181,6 +201,8 @@ namespace BookWiz
             saveToolStripButton = new ToolStripButton();
             printToolStripButton = new ToolStripButton();
             toolStripSeparator = new ToolStripSeparator();
+            BalanceBTN = new ToolStripButton();
+            toolStripSeparator1 = new ToolStripSeparator();
             helpToolStripButton = new ToolStripButton();
             tabControl1 = new TabControl();
             tabPage1 = new TabPage();
@@ -255,12 +277,13 @@ namespace BookWiz
             tableLayoutPanel1.RowStyles.Add(new RowStyle());
             tableLayoutPanel1.Size = new Size(840, 723);
             tableLayoutPanel1.TabIndex = 0;
+            tableLayoutPanel1.HelpRequested += HelpRequested;
             // 
             // toolStrip1
             // 
             tableLayoutPanel1.SetColumnSpan(toolStrip1, 7);
             toolStrip1.GripStyle = ToolStripGripStyle.Hidden;
-            toolStrip1.Items.AddRange(new ToolStripItem[] { newToolStripButton, openToolStripButton, saveToolStripButton, printToolStripButton, toolStripSeparator, helpToolStripButton });
+            toolStrip1.Items.AddRange(new ToolStripItem[] { newToolStripButton, openToolStripButton, saveToolStripButton, printToolStripButton, toolStripSeparator, BalanceBTN, toolStripSeparator1, helpToolStripButton });
             toolStrip1.Location = new Point(0, 0);
             toolStrip1.Name = "toolStrip1";
             toolStrip1.Size = new Size(840, 25);
@@ -311,6 +334,21 @@ namespace BookWiz
             // 
             toolStripSeparator.Name = "toolStripSeparator";
             toolStripSeparator.Size = new Size(6, 25);
+            // 
+            // BalanceBTN
+            // 
+            BalanceBTN.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            BalanceBTN.Image = (Image)resources.GetObject("BalanceBTN.Image");
+            BalanceBTN.ImageTransparentColor = Color.Magenta;
+            BalanceBTN.Name = "BalanceBTN";
+            BalanceBTN.Size = new Size(23, 22);
+            BalanceBTN.Text = "Balance Checkbook";
+            BalanceBTN.Click += BalanceBTN_Click;
+            // 
+            // toolStripSeparator1
+            // 
+            toolStripSeparator1.Name = "toolStripSeparator1";
+            toolStripSeparator1.Size = new Size(6, 25);
             // 
             // helpToolStripButton
             // 
@@ -389,6 +427,7 @@ namespace BookWiz
             // 
             // dataGridView1
             // 
+            dataGridView1.AllowDrop = true;
             dataGridView1.AllowUserToAddRows = false;
             dataGridView1.AllowUserToResizeColumns = false;
             dataGridView1.AllowUserToResizeRows = false;
@@ -401,9 +440,12 @@ namespace BookWiz
             dataGridView1.ReadOnly = true;
             dataGridView1.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.AutoSizeToAllHeaders;
             dataGridView1.RowTemplate.Height = 25;
+            dataGridView1.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dataGridView1.Size = new Size(820, 612);
             dataGridView1.TabIndex = 1;
             dataGridView1.UserDeletedRow += DataGridView1_UserDeletedRow;
+            dataGridView1.DragDrop += dataGridView1_DragDrop;
+            dataGridView1.DragOver += dataGridView1_DragOver;
             // 
             // tabPage2
             // 
@@ -625,6 +667,7 @@ namespace BookWiz
             // 
             DescriptionBox.Dock = DockStyle.Fill;
             DescriptionBox.Location = new Point(388, 28);
+            DescriptionBox.MaxLength = 16;
             DescriptionBox.Name = "DescriptionBox";
             DescriptionBox.PlaceholderText = "Description";
             DescriptionBox.Size = new Size(323, 23);
@@ -668,10 +711,13 @@ namespace BookWiz
             // 
             // BookWiz
             // 
+            AcceptButton = ConfirmBTN;
+            AllowDrop = true;
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
             AutoSize = true;
             AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            CancelButton = CancelBTN;
             ClientSize = new Size(840, 723);
             Controls.Add(tableLayoutPanel1);
             HelpButton = true;
@@ -718,14 +764,16 @@ namespace BookWiz
                 else if (comboBox1.SelectedItem.ToString() == "Income")
                 {
                     DataRow dr = dt.NewRow();
-                    dr[0] = DateOnly.FromDateTime(dateTimePicker1.Value.Date);
+                    dr[0] = dateTimePicker1.Value.Date;
                     dr[1] = numericUpDown1.Value;
                     dr[2] = comboBox1.SelectedItem;
                     dr[3] = DescriptionBox.Text;
+                    dr[4] = false;
+                    dr[5] = false;
 
                     dt.Rows.Add(dr);
-                    RefreshTables();
                     Reset();
+                    RefreshTables();
                 }
                 else if (comboBox1.SelectedItem.ToString() == "Expenses")
                 {
@@ -734,11 +782,13 @@ namespace BookWiz
                     dr[1] = -numericUpDown1.Value;
                     dr[2] = comboBox1.SelectedItem;
                     dr[3] = DescriptionBox.Text;
+                    dr[4] = false;
+                    dr[5] = false;
 
 
                     dt.Rows.Add(dr);
-                    RefreshTables();
                     Reset();
+                    RefreshTables();
                 }
 
             }
@@ -751,13 +801,14 @@ namespace BookWiz
 
         private void SaveToolStripButton_Click(object sender, EventArgs e)
         {
+            RefreshTables();
             SaveFileDialog saveFileDialog = new()
             {
                 Filter = "XML-File | *.xml"
             };
             if (saveFileDialog.ShowDialog() == DialogResult.OK)
             {
-                dataSet.WriteXml(saveFileDialog.FileName);
+                dt.WriteXml(saveFileDialog.FileName, true);
             }
         }
 
@@ -773,14 +824,14 @@ namespace BookWiz
                 dt.Rows.Clear();
                 try
                 {
-                    dataSet.ReadXml(openFileDialog.FileName);
+                    dt.ReadXml(openFileDialog.FileName);
                 }
                 catch
                 {
                     MessageBox.Show("Oops! Your data may not have been entered correctly.");
 
                 }
-                base.Refresh();
+                RefreshTables();
 
             }
         }
@@ -838,6 +889,50 @@ namespace BookWiz
             page = 0;
             FontSize = -1;
             s.WriteLine("%!PS");
+            s.WriteLine(
+@"%Rounded Rect
+/RR {
+11 dict begin
+  /dx 1000 def
+  /dy 1000 def
+  /r 100 def
+  /lw 50 def
+
+  /x1 lw 2 div def
+  /x2 dx x1 sub def
+  /y1 x1 def
+  /y2 dy y1 sub def
+
+  lw setlinewidth
+  dx 2 div y1 moveto
+  x1 x1 y1 y2 r arct
+  x1 x2 y2 y2 r arct
+  x2 x2 y2 y1 r arct
+  x2 x1 y1 y1 r arct
+  closepath stroke
+end
+}bind def
+
+/Box <</FormType 1 /BBox [0 0 1000 1000] /Matrix 0.001 0.001 matrix scale /PaintProc {pop RR} bind >> def
+
+%X
+/X {
+5 dict begin
+  /dx 1000 def
+  /dy 1000 def
+  /lw 100 def
+  /m 200 def
+  
+  1 setlinecap
+  lw setlinewidth
+  m m moveto dx m sub dy m sub lineto
+  m dy m sub moveto dx m sub m lineto
+  stroke
+end
+}bind def
+
+/XBox <</FormType 1 /BBox [0 0 1000 1000] /Matrix 0.001 0.001 matrix scale /PaintProc {pop RR X} bind >> def
+");
             StartPage();
         }
 
@@ -849,6 +944,7 @@ namespace BookWiz
 
         void OutputText(int x, int y, string text, int size)
         {
+
             if (FontSize != size)
             {
                 s.WriteLine($"/Times-Roman {size} selectfont");
@@ -876,13 +972,20 @@ namespace BookWiz
         {
             OutputText(size, (0, text));
         }
-
+        void OutputXBox(int x, int y, int size = 12)
+        {
+            s.WriteLine($"    gsave\r\n      {size} {size} scale\r\n      {(x + LeftMargin) / 12} {(y) / 12} translate\r\n\t  0.9 0.9 scale\r\n      XBox execform\r\n    grestore");
+        }
+        void OutputBox(int x, int y, int size = 12)
+        {
+            s.WriteLine($"    gsave\r\n      {size} {size} scale\r\n      {(x + LeftMargin) / 12} {(y) / 12} translate\r\n\t  0.9 0.9 scale\r\n      Box execform\r\n    grestore");
+        }
         private void ExportToolStripButton1_Click(object sender, EventArgs e)
         {
             SaveFileDialog saveFileDialog2 = new()
             {
                 Title = "Export as",
-                Filter = "PDF-File | *.PDF"
+                Filter = "PDF-File | *.pdf"
             };
             if (saveFileDialog2.ShowDialog() == DialogResult.OK)
             {
@@ -897,15 +1000,62 @@ namespace BookWiz
 
                 using Process p = Process.Start(psi);
                 StartDoc(p.StandardInput);
-                OutputText(12, (144, "Date"), (76, "Amount"), (100, "Type"), (0, "Description"));
+                OutputText(12, (60, "Date"), (76 * 5 / 6, "Amount"), (50, "Type"), (152, "Description"), (75, "Reconciled"), (50, "Pending"));
 
                 foreach (DataRow r in dt.Rows)
                 {
-                    OutputText(12, (144, r["Date"].ToString()), (76, r["Amount"].ToString()), (100, (string)r["Type"]), (0, (string)r["Description"]));
-                }
 
+                    if (r["Pending"].ToString() == "False" && r["Reconciled"].ToString() == "False")
+                    {
+                        OutputText(12,
+                        (60, DateOnly.FromDateTime((DateTime)r["Date"]).ToString()),
+                        (76 * 5 / 6, Convert.ToDecimal(r["Amount"]).ToString("C", culture)),
+                        (50, (string)r["Type"]),
+                        (152, (string)r["Description"]));
+                        OutputBox(337, y, 12);
+                        OutputBox(412, y, 12);
+
+                    }
+                    if (r["Pending"].ToString() == "False" && r["Reconciled"].ToString() == "True")
+                    {
+                        OutputText(12,
+                        (60, DateOnly.FromDateTime((DateTime)r["Date"]).ToString()),
+                        (76 * 5 / 6, Convert.ToDecimal(r["Amount"]).ToString("C", culture)),
+                        (50, (string)r["Type"]),
+                        (152, (string)r["Description"]));
+                        OutputXBox(337, y, 12);
+                        OutputBox(412, y, 12);
+                    }
+
+                    if (r["Pending"].ToString() == "True" && r["Reconciled"].ToString() == "False")
+                    {
+                        OutputText(12,
+                        (60, DateOnly.FromDateTime((DateTime)r["Date"]).ToString()),
+                        (76 * 5 / 6, Convert.ToDecimal(r["Amount"]).ToString("C", culture)),
+                        (50, (string)r["Type"]),
+                        (152, (string)r["Description"]));
+                        OutputBox(337, y, 12);
+                        OutputXBox(412, y, 12);
+                    }
+                }
                 OutputText($"Total Income: {IncomeTotalLabel.Text}", 36);
                 OutputText($"Total Expenses: {ExpenseTotalLabel.Text}", 36);
+                if (ReconciledTotal == DBNull.Value)
+                {
+                    OutputText($"Total Reconciled: $0.00", 36);
+                }
+                else
+                {
+                    OutputText($"Total Reconciled: {Convert.ToDecimal(Balance.ReconciledTotal).ToString("C", culture)}", 36);
+                }
+                if (NonreconciledTotal == DBNull.Value)
+                {
+                    OutputText($"Total Nonreconciled: $0.00", 36);
+                }
+                else
+                {
+                    OutputText($"Total Nonreconciled: {Convert.ToDecimal(Balance.NonreconciledTotal).ToString("C", culture)}", 36);
+                }
                 OutputText($"Grand Total: {GrandTotalLabel.Text}", 36);
 
                 EndDoc();
@@ -936,7 +1086,6 @@ namespace BookWiz
         {
             AboutBox1 aboutBox1 = new();
             aboutBox1.ShowDialog();
-
         }
 
 
@@ -945,5 +1094,53 @@ namespace BookWiz
             RefreshTables();
         }
 
+        new private void HelpRequested(object sender, HelpEventArgs hlpevent)
+        {
+            AboutBox1 aboutBox1 = new();
+            aboutBox1.ShowDialog();
+        }
+
+        private void BalanceBTN_Click(object sender, EventArgs e)
+        {
+            Balance balance = new(dt);
+            balance.ShowDialog();
+        }
+        private void dataGridView1_DragDrop(object sender, DragEventArgs e)
+        {
+            string[] a = (string[])e.Data.GetData("FileName");
+            var b = a[0];
+            dt.Rows.Clear();
+            try
+            {
+                dt.ReadXml(b);
+            }
+            catch
+            {
+                MessageBox.Show("Oops! Your data may not have been entered correctly.");
+
+            }
+            RefreshTables();
+
+
+        }
+
+        private void dataGridView1_DragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetType() == typeof(DataObject))
+            {
+                string[] a = (string[])e.Data.GetData("FileName");
+                var b = a[0];
+                bool c = b.ToLower().EndsWith(".xml");
+                if (c)
+                {
+                    e.Effect = DragDropEffects.All;
+                }
+
+            }
+            else
+            {
+                e.Effect = DragDropEffects.All;
+            }
+        }
     }
 }
