@@ -774,7 +774,7 @@ namespace BookWiz
                 else if (comboBox1.SelectedItem.ToString() == "Expenses")
                 {
                     DataRow dr = dt.NewRow();
-                    dr[0] = DateOnly.FromDateTime(dateTimePicker1.Value.Date);
+                    dr[0] = dateTimePicker1.Value.Date;
                     dr[1] = -numericUpDown1.Value;
                     dr[2] = comboBox1.SelectedItem;
                     dr[3] = DescriptionBox.Text;
